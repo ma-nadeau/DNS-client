@@ -26,7 +26,10 @@ class dnsQuery:
         self.recordType = recordType
     
     def __repr__(self):
-        return f'[serverIPV4:{".".join(str(e) for e in list(self.serverIPV4))}, domainName:{self.domainName}, timeout:{self.timeout}, maxRetries:{self.maxRetries}, port:{self.port}, recordType:{self.recordType.name}]'
+        return f'[serverIPV4:{self.getServerIPV4()}, domainName:{self.domainName}, timeout:{self.timeout}, maxRetries:{self.maxRetries}, port:{self.port}, recordType:{self.recordType.name}]'
+
+    def getServerIPV4(self):
+        return ".".join(str(e) for e in list(self.serverIPV4))
 
     @classmethod
     def parseArguments(cls, argv : list[str]):
@@ -62,15 +65,15 @@ class dnsQuery:
                 case "-t":
                     if optionalArgs.get("timeout"):
                         raise ValueError(cls.utilisation)
-                    optionalArgs["-t"] = int(argv.pop())
+                    optionalArgs["timeout"] = int(argv.pop(0))
                 case "-r":
                     if optionalArgs.get("maxRetries"):
                         raise ValueError(cls.utilisation)
-                    optionalArgs["-r"] = int(argv.pop())
+                    optionalArgs["maxRetries"] = int(argv.pop(0))
                 case "-p":
                     if optionalArgs.get("port"):
                         raise ValueError(cls.utilisation)
-                    optionalArgs["-p"] = int(argv.pop())
+                    optionalArgs["port"] = int(argv.pop(0))
                 case "-mx" | "-ns":
                     if optionalArgs.get("recordType"):
                         raise ValueError(cls.utilisation)
