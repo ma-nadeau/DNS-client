@@ -1,16 +1,5 @@
-from enum import Enum
+from dnsCommonTypes import *
 from typing import NamedTuple
-
-class recordType(Enum):
-    A = 1
-    MX = 2
-    NS = 3
-
-class IPV4(NamedTuple):
-    a : int
-    b : int
-    c : int
-    d : int
 
 class dnsQuery:
     # Program utilization reminder
