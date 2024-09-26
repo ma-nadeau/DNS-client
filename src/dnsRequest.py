@@ -1,15 +1,26 @@
 from random import randint
-
+from dnsCommonTypes import recordType
 
 class dnsRequest:
     # Note that the UDP packets are encoded in big-endian (network byte order)
 
-    def __init__(self, domain_name, q_type):
+    # Labels cannot exceed 63 octets
+    MAX_LABEL_SIZE = 63
+
+    def __init__(self, domain_name : str, q_type : recordType):
         self.ID = randint(0,2**16-1)
         self.domain_name = domain_name
         self.q_type = q_type
     
-    def getHeader(self) -> bytes:
+    def get_encoded_request(self):
+        header = self.get_header()
+        encoded_question = self.get_encoded_question()
+        return header + encoded_question
+    
+    def get_header(self) -> bytes:
+        # Return the already computed instance variable if existant
+        if hasattr(self, 'header'):
+            return self.header
         header = b''
         header += self.ID.to_bytes(2)  #Add the ID at the very top of the header
         # Adding the second line of the header which specifies 
@@ -20,48 +31,44 @@ class dnsRequest:
         header += b'\x00\x01'
         # Finally, ANCOUNT, NSCOUNT, and ARCOUNT are all 0x0000 because this is a request message
         header += 6*b'\x00'
-        print(header)
 
+        #Update the instance variable
+        self.header = header
         return header
 
-    def perform_QNAME_encoding(self):
+    def get_encoded_question(self) -> bytes:
+        # Return the already computed instance variable if existant
+        if hasattr(self, 'encoded_question'):
+            return self.encoded_question
 
-        # Check if labels are less than 63 Octets long
-        if len(self.domain_name.replace('.', '')) > 63:
-            raise ValueError('Domain name too long')
+        question = b''
+        # Get the ecnoding for QNAME
+        question += self.get_QNAME_encoding()
 
-        # Split domain name at '.' -> www.mcgill.ca = ['www', 'mcgill', 'ca')
+        # Add the encoding for the query type to question (i,e, QTYPE)
+        question += self.q_type.value.to_bytes(2)
+        # For our project, QCLASS is always 0x0001
+        question += (0x0001).to_bytes(2)
+
+        #Update the instance variable
+        self.encoded_question = question
+        return question
+
+    def get_QNAME_encoding(self):
+        # Fetch labels from domain name by splitting at '.' -> www.mcgill.ca = ['www', 'mcgill', 'ca']
         labels = self.domain_name.split('.')
+
         q_name = b''
 
         for label in labels:
             # Get the length of the label
             len_label = len(label)
+            # Make sure that labels are less than 63 Octets long
+            if len(label) > 63:
+                raise ValueError(f'Label {label} in doemain name is too long (labels are restricted to {dnsRequest.MAX_LABEL_SIZE} octets max)')
             # add the length + the label ascii encoding
             q_name += len_label.to_bytes() + label.encode('ascii')
 
         # Terminates with zero-length octet
         q_name += b'\x00'
         return q_name
-
-
-    def getQuestion(self) -> bytes:
-
-        question = b''
-        # Get the ecnoding for QNAME
-        question += self.perform_QNAME_encoding()
-
-        # Define query types
-        query_types = {
-            "A": 0x0001,  # Type-A query (host address)
-            "NS": 0x0002,  # Type-NS query (name server)
-            "MX": 0x000f  # Type-MX query (mail server)
-        }
-        # Add the encoding for the query type to question (i,e, QTYPE)
-        if self.q_type not in query_types:
-            raise ValueError('Invalid q_type')
-        else:
-            question += query_types[self.q_type].to_bytes(2)
-        # For our project, QCLASS is always 0x0001
-        question += (0x0001).to_bytes(2)
-        return question
