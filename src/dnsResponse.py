@@ -30,10 +30,14 @@ class dnsAnswer(NamedTuple):
 
 class dnsResponse:
     def __init__(self, message: bytes):
-        self.message = message
+        self._message = message
         self.ID = dnsResponse.parseID(self.message)
         self.parseMessage(message)
 
+    @property
+    def message(self):
+        return self._message
+    
     @staticmethod
     def parseID(message: bytes) -> int:
         return int.from_bytes(message[:2])
@@ -73,55 +77,38 @@ class dnsResponse:
         answers = []
         for i in range(ANCOUNT):
             NAME, idx = dnsResponse.parseName(unparsed_answer_section)
-            unparsed_answer_section = unparsed_answer_section[
-                idx:
-            ]  # Update unparsed section variable
+            unparsed_answer_section = unparsed_answer_section[idx:]  # Update unparsed section variable
             TYPE = recordType(int.from_bytes(unparsed_answer_section[:2]))
             CLASS = int.from_bytes(unparsed_answer_section[2:4])
             TTL = int.from_bytes(unparsed_answer_section[4:8])
             RDLENGTH = int.from_bytes(unparsed_answer_section[8:10])
-            RDATA = dnsResponse.parse_RDATA(
-                unparsed_answer_section[10 : 10 + RDLENGTH], TYPE
-            )
+            RDATA = dnsResponse.parse_RDATA(unparsed_answer_section[10 : 10 + RDLENGTH], TYPE)
             answers.append(dnsAnswer(NAME, TYPE, CLASS, TTL, RDLENGTH, RDATA))
         return answers
 
     @staticmethod
-    def extract_value_at_pointer(answer: bytes, pointer_offset: int) -> list[str]:
-        labels = []
-        while answer[pointer_offset] != 0:
-            label_length = answer[pointer_offset]
-            pointer_offset += 1  # Skip over label length byte
-            label = answer[pointer_offset : pointer_offset + label_length].decode(
-                "ascii"
-            )
-            labels.append(label)
-            pointer_offset += label_length
-        return labels
-
-    @staticmethod
     def parseName(answer: bytes):
         import pdb
-
         pdb.set_trace()
+        
         idx = 0
         labels = []
-        # TODO: fix loop condition, it seems that every domain name in the answer terminates with a 0
-        while answer[idx] != 0:
-            if check_pointer(answer[idx].to_bytes()):
-                offset = get_pointer_value(answer[idx : idx + 2])
-                offset_labels = dnsResponse.extract_value_at_pointer(answer, offset)
-                labels.extend(offset_labels)
-                idx += 2
-            else:
+        if check_pointer(answer[idx].to_bytes()):
+            offset = get_pointer_value(answer[idx : idx + 2])
+            offset_labels = dnsResponse.extract_value_at_pointer(dnsResponse.message, offset)
+            labels.extend(offset_labels)
+            idx += 2 # Skip Pointer
+        else:
+            while answer[idx] != 0:
+        
                 label_length = answer[idx]
                 idx += 1  # Skip over label length byte
                 label = answer[idx : idx + label_length].decode("ascii")
                 labels.append(label)
                 idx += label_length
-        idx += 1  # To skip the null character
+            idx += 1  # To skip over the terminating character
         return (".".join(labels), idx)
-
+    
     @staticmethod
     def parse_RDATA(answer: bytes, record_type: recordType) -> IPV4 | str | MX_record:
         match (recordType):
@@ -152,3 +139,13 @@ def check_pointer(byte: bytes) -> bool:
 
 def get_pointer_value(pointer: bytes) -> int:
     return pointer & 0b0011111111111111
+
+def extract_value_at_pointer(message : bytes, pointer_offset: int) -> list[str]:
+    labels = []
+    while message[pointer_offset] != 0:
+        label_length = message[pointer_offset]
+        pointer_offset += 1  # Skip over label length byte
+        label = message[pointer_offset : pointer_offset + label_length].decode("ascii")
+        labels.append(label)
+        pointer_offset += label_length
+    return labels
