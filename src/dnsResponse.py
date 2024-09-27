@@ -108,7 +108,7 @@ class dnsResponse:
         labels = []
         # TODO: fix loop condition, it seems that every domain name in the answer terminates with a 0
         while answer[idx] != 0:
-            if check_pointer(answer[idx], idx):
+            if check_pointer(answer[idx].to_bytes()):
                 offset = get_pointer_value(answer[idx : idx + 2])
                 offset_labels = dnsResponse.extract_value_at_pointer(answer, offset)
                 labels.extend(offset_labels)
