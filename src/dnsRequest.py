@@ -12,8 +12,6 @@ class dnsRequest:
         self.ID = randint(0, 2**16 - 1)
         self.domain_name = domain_name
         self.q_type = q_type
-        self.encoded_question = None
-        self.header = None
 
     def get_encoded_request(self):
         header = self.get_header()
@@ -37,6 +35,7 @@ class dnsRequest:
 
         # Update the instance variable
         self.header = header
+
         return header
 
     def get_encoded_question(self) -> bytes:

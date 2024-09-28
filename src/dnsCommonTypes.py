@@ -1,14 +1,20 @@
 from enum import Enum
 from typing import NamedTuple
 
+
 class recordType(Enum):
     A = 1
-    MX = 2
+    NS = 2
     CNAME = 5
-    NS = 15
+    MX = 15
+
+    @classmethod
+    def from_value(cls, value: int):
+        return cls(value)
+
 
 class IPV4(NamedTuple):
-    a : int
-    b : int
-    c : int
-    d : int
+    a: int
+    b: int
+    c: int
+    d: int

@@ -34,8 +34,6 @@ class dnsResponse:
         self._message = message
         self.ID = dnsResponse.parseID(self.message)
         self.parseMessage(self.message)
-        self.header = None
-        self.answers = None
 
     @property
     def message(self) -> bytes:
@@ -46,13 +44,11 @@ class dnsResponse:
         return int.from_bytes(message[:2])
 
     def parseMessage(self, message: bytes):
-        import pdb
 
-        pdb.set_trace()
         self.header = dnsResponse.parse_header(message[:12])
         answer_section_start = 12 + self.header.QDCOUNT
         answer_section_end = answer_section_start + self.header.ANCOUNT
-        answer_section = message[answer_section_start:answer_section_end]
+        answer_section = message[answer_section_start - 1 :]
         self.answers = dnsResponse.parseAnswerSection(
             answer_section, self.header.ANCOUNT, self.message
         )
@@ -75,35 +71,38 @@ class dnsResponse:
     def parseAnswerSection(
         answer_section: bytes, ANCOUNT: int, message: bytes
     ) -> list[dnsAnswer]:
-        import pdb
+        # import pdb
 
-        pdb.set_trace()
-        unparsed_answer_section = answer_section
+        # pdb.set_trace()
+        unparsed_answer_section = answer_section[0:]
         answers = []
+        # TODO: Add
         for i in range(ANCOUNT):
             NAME, idx = dnsResponse.parseName(unparsed_answer_section, message)
-            unparsed_answer_section = unparsed_answer_section[
-                idx:
-            ]  # Update unparsed section variable
-            TYPE = recordType(int.from_bytes(unparsed_answer_section[:2]))
+            unparsed_answer_section = unparsed_answer_section[idx:]
+            # Update unparsed section variable
+            TYPE = recordType.from_value(int.from_bytes(unparsed_answer_section[0:2]))
             CLASS = int.from_bytes(unparsed_answer_section[2:4])
             TTL = int.from_bytes(unparsed_answer_section[4:8])
             RDLENGTH = int.from_bytes(unparsed_answer_section[8:10])
             RDATA = dnsResponse.parse_RDATA(
                 unparsed_answer_section[10 : 10 + RDLENGTH], TYPE, message
             )
+            unparsed_answer_section = unparsed_answer_section[idx:]
             answers.append(dnsAnswer(NAME, TYPE, CLASS, TTL, RDLENGTH, RDATA))
         return answers
 
     @staticmethod
     def parseName(answer: bytes, message) -> Tuple[str, int]:
-        import pdb
 
-        pdb.set_trace()
+        # import pdb
+
+        # pdb.set_trace()
 
         idx = 0
         labels = []
         if check_pointer(answer[idx]):
+
             offset = get_pointer_value(answer[idx : idx + 2])
             offset_labels = extract_value_at_pointer(message, offset)
             labels.extend(offset_labels)
@@ -116,7 +115,9 @@ class dnsResponse:
                 label = answer[idx : idx + label_length].decode("ascii")
                 labels.append(label)
                 idx += label_length
+
             idx += 1  # To skip over the terminating character
+
         return ".".join(labels), idx
 
     @staticmethod
@@ -134,6 +135,26 @@ class dnsResponse:
                     int.from_bytes(answer[:2]),
                     dnsResponse.parseName(answer[2:], message)[0],
                 )
+
+    # TODO: add alias and authority, what are they???
+    def print_response_content(self) -> None:
+        print(f"***Answer Section ({len(self.answers)} records)***")
+        for a in self.answers:
+            if a.TYPE == recordType.A:
+                print(f"IP\t{a.RDATA}\t{a.TTL}\t")
+            elif a.TYPE == recordType.CNAME:
+                print(f"CNAME\t{a.RDATA}\t{a.TTL}\t")
+            elif a.TYPE == recordType.MX:
+                print(f"MX\t{a.RDATA.PREFERENCE}\t{a.RDATA.PREFERENCE}\t{a.TTL}\t")
+            elif a.TYPE == recordType.NS:
+                print(f"NS\t{a.RDATA}\t{a.TTL}\t")
+        print(f"***Additional Section (TODO: records) ***")
+        # TODO:
+        # if self.additional < 1 :
+        #   print("NOTFOUND")
+        # for ad in self.additional:
+        #
+        #
 
 
 # Helper functions
