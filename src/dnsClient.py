@@ -4,58 +4,49 @@ import sys
 from dnsQuery import dnsQuery
 from dnsResponse import dnsResponse
 from dnsRequest import dnsRequest
+from dnsCommonTypes import getServerIPV4
 import socket
 import time
 
 
 def main():
-    # import pdb
+    userDnsQuery = dnsQuery.parseArguments(sys.argv[1:])
+    userRequest = dnsRequest(userDnsQuery.domainName, userDnsQuery.recordType)
 
-    # pdb.set_trace()
+    dnsSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    try:
-        userDnsQuery = dnsQuery.parseArguments(sys.argv[1:])
-        userRequest = dnsRequest(userDnsQuery.domainName, userDnsQuery.recordType)
+    dnsSocket.sendto(
+        userRequest.get_encoded_request(),
+        (getServerIPV4(userDnsQuery.serverIPV4), userDnsQuery.port),
+    )
 
-        dnsSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    dnsSocket.settimeout(userDnsQuery.timeout)
 
-        dnsSocket.sendto(
-            userRequest.get_encoded_request(),
-            (userDnsQuery.getServerIPV4(), userDnsQuery.port),
-        )
+    # Printing to STDOUT a summary of query
+    userDnsQuery.print_summarize_query()
 
-        dnsSocket.settimeout(userDnsQuery.timeout)
-        # Printing to STDOUT a summary of query
-        # dnsQuery.print_query_summary()
-        userDnsQuery.print_summarize_query()
-        start_time = time.time()
-        response_received = False
-        retries = 0
+    retries = 0
+    start_time = time.time()
 
-        while retries < userDnsQuery.maxRetries and not response_received:
-            try:
-                serverResponse, serverAddress = dnsSocket.recvfrom(2048)
-                response_received = True
-                dnsSocket.close()
-                end_time = time.time()
-                responseTime = end_time - start_time
-                print(
-                    f"Response recceived after {responseTime} seconds ({retries}) retries"
-                )
-                userDnsResponse = dnsResponse(serverResponse)
-                print(userDnsResponse)
-                userDnsResponse.print_response_content()
-            except socket.timeout:
-                retries += 1
-                print("FUCK")
-        # Might want to make sure here that serverAddress is the correct address
+    while retries < userDnsQuery.maxRetries:
+        try:
+            serverResponse, serverAddress = dnsSocket.recvfrom(2048)
+            end_time = time.time()
+            dnsSocket.close()
+            responseTime = end_time - start_time
+            print(
+                f"Response received after {responseTime} seconds ({retries}) retries)"
+            )
+            userDnsResponse = dnsResponse(serverResponse)
+            userDnsResponse.print_response_content()
+            break
+        except socket.timeout:
+            retries += 1
+    # Might want to make sure here that serverAddress is the correct address
 
-        # Might want to check here that the ID is the same as the ID of the dnsQuery
+    # Might want to check here that the ID is the same as the ID of the dnsQuery
 
-        print(dnsQuery.parseArguments(sys.argv[1:]))
-
-    except KeyboardInterrupt:
-        print("TESTING!!!!")
+    # print(dnsQuery.parseArguments(sys.argv[1:]))
 
 
 # For when the program is invoked from the command line (stdin)

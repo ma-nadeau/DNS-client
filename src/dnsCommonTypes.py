@@ -18,3 +18,6 @@ class IPV4(NamedTuple):
     b: int
     c: int
     d: int
+
+def getServerIPV4(serverIPV4 : IPV4):
+    return ".".join(str(e) for e in list(serverIPV4))

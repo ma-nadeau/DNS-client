@@ -94,12 +94,9 @@ class dnsQuery:
         return IPV4(*IPV4List)
 
     def __repr__(self):
-        return f"[serverIPV4:{self.getServerIPV4()}, domainName:{self.domainName}, timeout:{self.timeout}, maxRetries:{self.maxRetries}, port:{self.port}, recordType:{self.recordType.name}]"
-
-    def getServerIPV4(self):
-        return ".".join(str(e) for e in list(self.serverIPV4))
+        return f"[serverIPV4:{getServerIPV4(self.serverIPV4)}, domainName:{self.domainName}, timeout:{self.timeout}, maxRetries:{self.maxRetries}, port:{self.port}, recordType:{self.recordType.name}]"
 
     def print_summarize_query(self):
-        print(f"DnsServer sending request for {self.domainName}")
-        print(f"Server: {self.getServerIPV4()}")
+        print(f"DnsClient sending request for {self.domainName}")
+        print(f"Server: {getServerIPV4(self.serverIPV4)}")
         print(f"Request type: {self.recordType.name}")

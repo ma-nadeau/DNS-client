@@ -70,8 +70,8 @@ class dnsRequest:
                 raise ValueError(
                     f"Label {label} in domain name is too long (labels are restricted to {dnsRequest.MAX_LABEL_SIZE} octets max)"
                 )
-            # add the length + the label ascii encoding
-            q_name += len_label.to_bytes() + label.encode("ascii")
+            # add the length + the label 8-bit ascii encoding
+            q_name += len_label.to_bytes() + label.encode("L1")
 
         # Terminates with zero-length octet
         q_name += b"\x00"
