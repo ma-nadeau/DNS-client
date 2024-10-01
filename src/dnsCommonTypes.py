@@ -10,6 +10,8 @@ class recordType(Enum):
 
     @classmethod
     def from_value(cls, value: int):
+        if value not in recordType:
+            raise ValueError("Error\tInvalid request type")
         return cls(value)
 
 

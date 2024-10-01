@@ -70,12 +70,18 @@ class dnsResponse:
 
     @staticmethod
     def parse_header(header: bytes) -> dnsHeader:
-        QR = get_bit(header[2], 0)
+        QR = get_bit(header[2], 0) 
+        if QR == 0: raise ValueError("ERROR\tUnexpected response. QR is set to 1, indicating a query")
         OPCODE = get_range_bit(header[2], 1, 4)
         AA = get_bit(header[2], 5)
         TC = get_bit(header[2], 6)
         RA = get_bit(header[3], 0)
         RCODE = get_range_bit(header[3], 4, 7)
+        if RCODE == 1: raise ValueError("ERROR\tFormat Error\tName server was unable to interpret the query")
+        elif RCODE == 2: raise ValueError("ERROR\tServer Failure\tName server was unable to process this query due to a problem with the name server")
+        elif RCODE == 3: raise ValueError("ERROR\tName Error\tDomain Name does not exist")
+        elif RCODE == 4: raise ValueError("ERROR\tNot Implemented\tName server was does not support the requested kind of query")
+        elif RCODE == 5: raise ValueError("ERROR\tRefused\tName server refuses to perfom the requested operation for policy reasons")
         QDCOUNT = int.from_bytes(header[4:6])
         ANCOUNT = int.from_bytes(header[6:8])
         NSCOUNT = int.from_bytes(header[8:10])
@@ -96,6 +102,7 @@ class dnsResponse:
             # Update unparsed section variable
             TYPE = recordType.from_value(int.from_bytes(unparsed_answer_section[0:2]))
             CLASS = int.from_bytes(unparsed_answer_section[2:4])
+            if CLASS != 1: raise ValueError("ERROR\tClass was not the expected value")
             TTL = int.from_bytes(unparsed_answer_section[4:8])
             RDLENGTH = int.from_bytes(unparsed_answer_section[8:10])
             RDATA = dnsResponse.parse_RDATA(
