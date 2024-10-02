@@ -27,7 +27,7 @@ class dnsQuery:
     def parseArguments(cls, argv: list[str]):
         # Check that argument length is not out of range
         if not 2 <= len(argv) <= 9:
-            raise ValueError(
+            raise dnsQueryParsingError(
                 "The number of arguments passed is out of range\n" + cls.utilisation
             )
 
@@ -37,7 +37,7 @@ class dnsQuery:
         serverIPV4 = argv.pop()
         if serverIPV4[0] != "@":
             print(serverIPV4[0])
-            raise ValueError(cls.utilisation)
+            raise dnsQueryParsingError(cls.utilisation)
         serverIPV4 = dnsQuery.parseIPV4(serverIPV4[1:])
 
         optionalArgs = cls.parseOptionalArguments(argv)
@@ -55,29 +55,29 @@ class dnsQuery:
                 switch in availableSwitches[:3]
                 and (len(argv) < 1 or not argv[0].isdigit() or int(argv[0]) < 0)
             ):
-                raise ValueError(cls.utilisation)
+                raise dnsQueryParsingError(cls.utilisation)
 
             match (switch):
                 case "-t":
                     if optionalArgs.get("timeout"):
-                        raise ValueError(cls.utilisation)
+                        raise dnsQueryParsingError(cls.utilisation)
                     optionalArgs["timeout"] = int(argv.pop(0))
                 case "-r":
                     if optionalArgs.get("maxRetries"):
-                        raise ValueError(cls.utilisation)
+                        raise dnsQueryParsingError(cls.utilisation)
                     optionalArgs["maxRetries"] = int(argv.pop(0))
                 case "-p":
                     if optionalArgs.get("port"):
-                        raise ValueError(cls.utilisation)
+                        raise dnsQueryParsingError(cls.utilisation)
                     optionalArgs["port"] = int(argv.pop(0))
                 case "-mx" | "-ns":
                     if optionalArgs.get("recordType"):
-                        raise ValueError(cls.utilisation)
+                        raise dnsQueryParsingError(cls.utilisation)
                     optionalArgs["recordType"] = (
                         recordType.MX if switch == "-mx" else recordType.NS
                     )
                 case _:
-                    raise ValueError(cls.utilisation)
+                    raise dnsQueryParsingError(cls.utilisation)
         return optionalArgs
 
     @staticmethod
@@ -88,7 +88,7 @@ class dnsQuery:
         if len(IPV4List) != 4 or not all(
             e.isdigit() and 0 <= int(e) <= 255 for e in IPV4List
         ):
-            raise ValueError(format)
+            raise dnsQueryParsingError(format)
 
         IPV4List = [int(e) for e in IPV4List]
         return IPV4(*IPV4List)
@@ -100,3 +100,7 @@ class dnsQuery:
         print(f"DnsClient sending request for {self.domainName}")
         print(f"Server: {getServerIPV4(self.serverIPV4)}")
         print(f"Request type: {self.recordType.name}")
+
+class dnsQueryParsingError(Exception):
+    def __init__(self, value : str) -> None:
+        self.value = value

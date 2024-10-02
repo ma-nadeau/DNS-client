@@ -24,7 +24,6 @@ class MX_record(NamedTuple):
 class dnsAnswer(NamedTuple):
     NAME: str
     TYPE: recordType
-    # TODO: ask what QCODE is. It doesn't appear in question packet description
     CLASS: int
     TTL: int
     RDLENGTH: int
@@ -71,22 +70,28 @@ class dnsResponse:
     @staticmethod
     def parse_header(header: bytes) -> dnsHeader:
         QR = get_bit(header[2], 0) 
-        if QR == 0: raise ValueError("ERROR\tUnexpected response. QR is set to 1, indicating a query")
+        if QR == 0:
+            raise dnsResponseParsingError("QR is set to 0, indicating a query for a response expected message.")
         OPCODE = get_range_bit(header[2], 1, 4)
         AA = get_bit(header[2], 5)
         TC = get_bit(header[2], 6)
         RA = get_bit(header[3], 0)
         RCODE = get_range_bit(header[3], 4, 7)
-        if RCODE == 1: raise ValueError("ERROR\tFormat Error\tName server was unable to interpret the query")
-        elif RCODE == 2: raise ValueError("ERROR\tServer Failure\tName server was unable to process this query due to a problem with the name server")
-        elif RCODE == 3: raise ValueError("ERROR\tName Error\tDomain Name does not exist")
-        elif RCODE == 4: raise ValueError("ERROR\tNot Implemented\tName server was does not support the requested kind of query")
-        elif RCODE == 5: raise ValueError("ERROR\tRefused\tName server refuses to perfom the requested operation for policy reasons")
+        match RCODE:
+            case 1:
+                raise dnsResponseParsingError("Format Error\tName server was unable to interpret the query")
+            case 2:
+                raise dnsResponseParsingError("Server Failure\tName server was unable to process this query due to a problem with the name server")
+            case 3:
+                raise Exception("NOTFOUND")
+            case 4:
+                raise dnsResponseParsingError("Not Implemented\tName server was does not support the requested kind of query")
+            case 5:
+                raise dnsResponseParsingError("Refused\tName server refuses to perfom the requested operation for policy reasons")
         QDCOUNT = int.from_bytes(header[4:6])
         ANCOUNT = int.from_bytes(header[6:8])
         NSCOUNT = int.from_bytes(header[8:10])
         ARCOUNT = int.from_bytes(header[10:12])
-        # TODO: Ask prof if repsonse message has any values/records in the question section
         return dnsHeader(QR, OPCODE, AA, TC, RA, RCODE, QDCOUNT, ANCOUNT, NSCOUNT, ARCOUNT)
 
     @staticmethod
@@ -95,14 +100,18 @@ class dnsResponse:
     ) -> Tuple[list[dnsAnswer], bytes]:
         unparsed_answer_section = answer_section
         answers = []
-        # TODO: Add
+        
         for i in range(ANCOUNT):
             NAME, idx = dnsResponse.parse_name(unparsed_answer_section, message)
             unparsed_answer_section = unparsed_answer_section[idx:]
             # Update unparsed section variable
-            TYPE = recordType.from_value(int.from_bytes(unparsed_answer_section[0:2]))
+            try:
+                TYPE = recordType.from_value(int.from_bytes(unparsed_answer_section[0:2]))
+            except ValueError as error:
+                raise dnsResponseParsingError(str(error))
             CLASS = int.from_bytes(unparsed_answer_section[2:4])
-            if CLASS != 1: raise ValueError("ERROR\tClass was not the expected value")
+            if CLASS != 1:
+                raise dnsResponseParsingError("Class field did not have the expected value of 0x0001")
             TTL = int.from_bytes(unparsed_answer_section[4:8])
             RDLENGTH = int.from_bytes(unparsed_answer_section[8:10])
             RDATA = dnsResponse.parse_RDATA(
@@ -143,7 +152,6 @@ class dnsResponse:
             case recordType.A:
                 return IPV4(answer[0], answer[1], answer[2], answer[3])
             case recordType.NS | recordType.CNAME:
-                # TODO: Does the name of the alias also have the same format as QNAME?
                 return dnsResponse.parse_name(answer, message)[0]
             case recordType.MX:
                 return MX_record(
@@ -151,7 +159,6 @@ class dnsResponse:
                     dnsResponse.parse_name(answer[2:], message)[0],
                 )
 
-    # TODO: add alias and authority, what are they???
     def print_response_content(self) -> None:
         if self.header.ANCOUNT > 0:
             print(f"***Answer Section ({self.header.ANCOUNT} records)***")
@@ -160,13 +167,7 @@ class dnsResponse:
             print(f"***Additional Section ({self.header.ANCOUNT} records) ***")
             self.format_answer_section(True)
         if self.header.ANCOUNT < 1 and self.header.ARCOUNT < 1:
-            print("NOTFOUND")
-        # TODO:
-        # if self.additional < 1 :
-        #   print("NOTFOUND")
-        # for ad in self.additional:
-        #
-        #
+            raise Exception("NOTFOUND")
 
     def format_answer_section(self, is_additional_section : bool = False):
         answer_authority = 'auth' if self.header.AA else 'nonauth'
@@ -203,3 +204,7 @@ def check_pointer(byte: int) -> bool:
 
 def get_pointer_value(pointer: int) -> int:
     return int.from_bytes(pointer) & 0x3FFF
+
+class dnsResponseParsingError(Exception):
+    def __init__(self, value : str) -> None:
+        self.value = value

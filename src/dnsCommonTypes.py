@@ -10,8 +10,8 @@ class recordType(Enum):
 
     @classmethod
     def from_value(cls, value: int):
-        if value not in recordType:
-            raise ValueError("Error\tInvalid request type")
+        if value not in [typ.value for typ in recordType]:
+            raise ValueError("Unexpected answer record type")
         return cls(value)
 
 
