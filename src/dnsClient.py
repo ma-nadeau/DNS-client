@@ -14,21 +14,23 @@ def main():
         userDnsQuery = dnsQuery.parseArguments(sys.argv[1:])
     except dnsQueryParsingError as error:
         print("ERROR\tIncorrect input syntax: " + error.value)
+        exit()
     
     userRequest = dnsRequest(userDnsQuery.domainName, userDnsQuery.recordType)
         
     try:
         dnsSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+        dnsSocket.settimeout(userDnsQuery.timeout)
+
+        # Printing to STDOUT a summary of query
+        userDnsQuery.print_summarize_query()
+
         dnsSocket.sendto(
             userRequest.get_encoded_request(),
             (getServerIPV4(userDnsQuery.serverIPV4), userDnsQuery.port),
         )
 
-        dnsSocket.settimeout(userDnsQuery.timeout)
-
-        # Printing to STDOUT a summary of query
-        userDnsQuery.print_summarize_query()
 
         retries = 0
         start_time = time.time()
@@ -39,12 +41,19 @@ def main():
             except socket.timeout:
                 retries += 1
                 continue
+            
+            # Ignore packets receives from servers other than the one queried
+            # Or with IDs different than the one sent
+            if serverAddress[0] != getServerIPV4(userDnsQuery.serverIPV4)\
+            or int.from_bytes(serverResponse[:2]) != userRequest.ID:
+                continue
+
             end_time = time.time()
             dnsSocket.close()
-            responseTime = end_time - start_time
+            responseTime = round(end_time - start_time, 5)
             try:
                 userDnsResponse = dnsResponse(serverResponse)
-                print(f"Response received after {responseTime} seconds ({retries}) retries)")
+                print(f"Response received after {responseTime} seconds ({retries} retries)")
                 userDnsResponse.print_response_content()
             except dnsResponseParsingError as error:
                 print("ERROR\tUnexpected response: " + error.value)
@@ -53,14 +62,9 @@ def main():
             break
         if retries > userDnsQuery.maxRetries:
             print(f"ERROR\tMaximum number of retries {userDnsQuery.maxRetries} exceeded")
-            
-        # Might want to make sure here that serverAddress is the correct address
 
-        # Might want to check here that the ID is the same as the ID of the dnsQuery
-
-        # print(dnsQuery.parseArguments(sys.argv[1:]))
     except Exception as error:
-        print("ERROR\t" + error)
+        print(error)
 
 # For when the program is invoked from the command line (stdin)
 if __name__ == "__main__":

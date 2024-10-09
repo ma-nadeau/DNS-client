@@ -5,7 +5,7 @@ from typing import NamedTuple
 class dnsQuery:
     # Program utilization reminder
     utilisation = """ The input should have the following format:
-    [-t timeout] [-r max-retries] [-p port] [-mx | -ns] @serverIPV4 domainName"""
+    python dnsClient.py [-t timeout] [-r max-retries] [-p port] [-mx | -ns] @serverIPV4 domainName"""
 
     def __init__(
         self,
@@ -32,12 +32,12 @@ class dnsQuery:
             )
 
         domainName = argv.pop()
+        dnsQuery.validate_domain_name(domainName)
 
         # Parse IPV4 and validate
         serverIPV4 = argv.pop()
         if serverIPV4[0] != "@":
-            print(serverIPV4[0])
-            raise dnsQueryParsingError(cls.utilisation)
+            raise dnsQueryParsingError("There is a missing '@' symbol for the serverIPV4 argument.\n" + cls.utilisation)
         serverIPV4 = dnsQuery.parseIPV4(serverIPV4[1:])
 
         optionalArgs = cls.parseOptionalArguments(argv)
@@ -51,11 +51,12 @@ class dnsQuery:
             switch = argv.pop(0)
             availableSwitches = ["-t", "-r", "-p", "-mx", "-ns"]
             # Input validation
-            if switch not in availableSwitches or (
-                switch in availableSwitches[:3]
-                and (len(argv) < 1 or not argv[0].isdigit() or int(argv[0]) < 0)
-            ):
+            if switch not in availableSwitches:
                 raise dnsQueryParsingError(cls.utilisation)
+            if switch in availableSwitches[:2] and (len(argv) < 1 or not argv[0].isdigit() or int(argv[0]) < 0):
+                raise dnsQueryParsingError("The timeout and max-retries values must be a non-negative integer.")
+            if switch == "-p" and (len(argv) < 1 or not argv[0].isdigit() or not 0 <= int(argv[0]) <= 65535):
+                raise dnsQueryParsingError("The port number must be a non-negative integer no greater than 65535.")
 
             match (switch):
                 case "-t":
@@ -92,6 +93,13 @@ class dnsQuery:
 
         IPV4List = [int(e) for e in IPV4List]
         return IPV4(*IPV4List)
+    
+    @staticmethod
+    def validate_domain_name(domain_name: str):
+        labels = domain_name.split(".")
+        for label in labels:
+            if len(label) > 63:
+                raise dnsQueryParsingError("The length of labels can't exceed 63 octets.")
 
     def __repr__(self):
         return f"[serverIPV4:{getServerIPV4(self.serverIPV4)}, domainName:{self.domainName}, timeout:{self.timeout}, maxRetries:{self.maxRetries}, port:{self.port}, recordType:{self.recordType.name}]"
