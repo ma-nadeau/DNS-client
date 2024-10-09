@@ -69,14 +69,14 @@ class dnsResponse:
 
     @staticmethod
     def parse_header(header: bytes) -> dnsHeader:
-        QR = get_bit(header[2], 0) 
+        QR = get_bit(header[2], 7) 
         if QR == 0:
             raise dnsResponseParsingError("QR is set to 0, indicating a query for a response expected message.")
-        OPCODE = get_range_bit(header[2], 1, 4)
-        AA = get_bit(header[2], 5)
-        TC = get_bit(header[2], 6)
-        RA = get_bit(header[3], 0)
-        RCODE = get_range_bit(header[3], 4, 7)
+        OPCODE = get_range_bit(header[2], 3, 6)
+        AA = get_bit(header[2], 2)
+        TC = get_bit(header[2], 1)
+        RA = get_bit(header[3], 7)
+        RCODE = get_range_bit(header[3], 0, 3)
         match RCODE:
             case 1:
                 raise dnsResponseParsingError("Format Error\tName server was unable to interpret the query")
