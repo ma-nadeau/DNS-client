@@ -58,13 +58,13 @@ def main():
             except dnsResponseParsingError as error:
                 print("ERROR\tUnexpected response: " + error.value)
             except Exception as error:
-                print(error)
+                print(str(error))
             break
         if retries > userDnsQuery.maxRetries:
             print(f"ERROR\tMaximum number of retries {userDnsQuery.maxRetries} exceeded")
 
     except Exception as error:
-        print(f'ERROR\t{error}')
+        print(f'ERROR\t{str(error)}')
 
 # For when the program is invoked from the command line (stdin)
 if __name__ == "__main__":

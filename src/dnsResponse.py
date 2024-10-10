@@ -34,6 +34,7 @@ class dnsResponse:
     def __init__(self, message: bytes):
         self._message = message
         self.ID = dnsResponse.parseID(self.message)
+        self.error = ""
         self.parseMessage(self.message)
 
     @property
@@ -57,15 +58,24 @@ class dnsResponse:
         # Answer section parsing
         answer_section_start = 12 + offset
         answer_section = message[answer_section_start:]
-        self.answers, authority_section = dnsResponse.parse_answer_section(
-            answer_section, self.header.ANCOUNT, message
-        )
+        try:
+            self.answers, authority_section = dnsResponse.parse_answer_section(
+                answer_section, self.header.ANCOUNT, message
+            )
+        except dnsResponseParsingError as error:
+            self.answers = error.partial_answers
+            self.error = error.value
+            return
 
         # Authority section parsing (ignored)
         additonal_section = dnsResponse.parse_answer_section(authority_section, self.header.NSCOUNT, message)[1]
 
         # Additional section parsing
-        self.additonal_answers = dnsResponse.parse_answer_section(additonal_section, self.header.ARCOUNT, message)[0]
+        try:
+            self.additonal_answers = dnsResponse.parse_answer_section(additonal_section, self.header.ARCOUNT, message)[0]
+        except dnsResponseParsingError as error:
+            self.additonal_answers = error.partial_answers
+            self.error = error.value
 
     @staticmethod
     def parse_header(header: bytes) -> dnsHeader:
@@ -108,10 +118,10 @@ class dnsResponse:
             try:
                 TYPE = recordType.from_value(int.from_bytes(unparsed_answer_section[0:2]))
             except ValueError as error:
-                raise dnsResponseParsingError(str(error))
+                raise dnsResponseParsingError(str(error), answers)
             CLASS = int.from_bytes(unparsed_answer_section[2:4])
             if CLASS != 1:
-                raise dnsResponseParsingError("Class field did not have the expected value of 0x0001")
+                raise dnsResponseParsingError("Class field did not have the expected value of 0x0001", answers)
             TTL = int.from_bytes(unparsed_answer_section[4:8])
             RDLENGTH = int.from_bytes(unparsed_answer_section[8:10])
             RDATA = dnsResponse.parse_RDATA(
@@ -187,6 +197,10 @@ class dnsResponse:
                     print(f'MX\t{answer.RDATA.EXCHANGE}\t{answer.RDATA.PREFERENCE}\t{answer.TTL}\t{answer_authority}')
                 case recordType.NS:
                     print(f'NS\t{answer.RDATA}\t{answer.TTL}\t{answer_authority}')
+        
+        # Raise suspended error if needed
+        if len(answers) != (self.header.ARCOUNT if is_additional_section else self.header.ANCOUNT) and self.error:
+            raise dnsResponseParsingError(self.error)
 
 # Helper functions
 def get_bit(byte: int, position: int) -> int:
@@ -206,5 +220,6 @@ def get_pointer_value(pointer: int) -> int:
     return int.from_bytes(pointer) & 0x3FFF
 
 class dnsResponseParsingError(Exception):
-    def __init__(self, value : str) -> None:
+    def __init__(self, value : str, partial_answers = None) -> None:
         self.value = value
+        self.partial_answers = partial_answers
