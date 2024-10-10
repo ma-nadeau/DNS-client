@@ -164,7 +164,7 @@ class dnsResponse:
             print(f"***Answer Section ({self.header.ANCOUNT} records)***")
             self.format_answer_section()
         if self.header.ARCOUNT > 0:
-            print(f"***Additional Section ({self.header.ANCOUNT} records) ***")
+            print(f"***Additional Section ({self.header.ARCOUNT} records) ***")
             self.format_answer_section(True)
         if self.header.ANCOUNT < 1 and self.header.ARCOUNT < 1:
             raise Exception("NOTFOUND")
