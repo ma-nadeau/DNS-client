@@ -64,7 +64,7 @@ def main():
             print(f"ERROR\tMaximum number of retries {userDnsQuery.maxRetries} exceeded")
 
     except Exception as error:
-        print(error)
+        print(f'ERROR\t{error}')
 
 # For when the program is invoked from the command line (stdin)
 if __name__ == "__main__":
