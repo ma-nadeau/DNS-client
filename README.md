@@ -2,7 +2,8 @@
 
 ## Description
 
-This Python program was developed using Python 3.12 which implements a DNS client software
+This Python program implements a DNS client software.
+It was developed and tested using Python 3.12.
 
 This DNS client is capable of sending queries for:
 - A records (IP addresses)
