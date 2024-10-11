@@ -47,7 +47,7 @@ class dnsResponse:
     
     def parseMessage(self, message: bytes):
         # Get header information
-        self.header = dnsResponse.parse_header(message[:12])
+        self.header = self.parse_header(message[:12])
 
         # Skip question section if there is any
         offset = 0
@@ -64,7 +64,7 @@ class dnsResponse:
             )
         except dnsResponseParsingError as error:
             self.answers = error.partial_answers
-            self.error = error.value
+            self.error += error.value
             return
 
         # Authority section parsing (ignored)
@@ -75,10 +75,9 @@ class dnsResponse:
             self.additonal_answers = dnsResponse.parse_answer_section(additonal_section, self.header.ARCOUNT, message)[0]
         except dnsResponseParsingError as error:
             self.additonal_answers = error.partial_answers
-            self.error = error.value
+            self.error += error.value
 
-    @staticmethod
-    def parse_header(header: bytes) -> dnsHeader:
+    def parse_header(self, header: bytes) -> dnsHeader:
         QR = get_bit(header[2], 7) 
         if QR == 0:
             raise dnsResponseParsingError("QR is set to 0, indicating a query for a response expected message.")
@@ -86,6 +85,8 @@ class dnsResponse:
         AA = get_bit(header[2], 2)
         TC = get_bit(header[2], 1)
         RA = get_bit(header[3], 7)
+        if RA == 0:
+            self.error += "ERROR\tRecursion is not supported by the queried server.\n"
         RCODE = get_range_bit(header[3], 0, 3)
         match RCODE:
             case 1:
@@ -178,6 +179,8 @@ class dnsResponse:
             self.format_answer_section(True)
         if self.header.ANCOUNT < 1 and self.header.ARCOUNT < 1:
             raise Exception("NOTFOUND")
+        if self.error:  # This is mostly for the RA error that wouldn't be raised until now
+            raise dnsResponseParsingError(self.error)
 
     def format_answer_section(self, is_additional_section : bool = False):
         answer_authority = 'auth' if self.header.AA else 'nonauth'
