@@ -52,8 +52,8 @@ def main():
             dnsSocket.close()
             responseTime = round(end_time - start_time, 5)
             try:
-                userDnsResponse = dnsResponse(serverResponse)
                 print(f"Response received after {responseTime} seconds ({retries} retries)")
+                userDnsResponse = dnsResponse(serverResponse)
                 userDnsResponse.print_response_content()
             except dnsResponseParsingError as error:
                 print("ERROR\tUnexpected response: " + error.value)

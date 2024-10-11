@@ -96,7 +96,7 @@ class dnsResponse:
             case 3:
                 raise Exception("NOTFOUND")
             case 4:
-                raise dnsResponseParsingError("Not Implemented\tName server was does not support the requested kind of query")
+                raise dnsResponseParsingError("Not Implemented\tName server does not support the requested kind of query")
             case 5:
                 raise dnsResponseParsingError("Refused\tName server refuses to perfom the requested operation for policy reasons")
         QDCOUNT = int.from_bytes(header[4:6])
