@@ -1,5 +1,9 @@
 # DNS Client Program (Python 3.12)
 
+## Contributors
+
+Created by [Marc-Antoine Nadeau](https://github.com/ma-nadeau) and [Karl Bridi](https://github.com/Kalamar136)
+
 ## Description
 
 This Python program implements a DNS client software.
